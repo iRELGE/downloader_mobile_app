@@ -81,6 +81,20 @@ class _ControllerPageState extends State<ControllerPage> {
                   ],
                 ),
               ),
+              Container(
+                  margin: EdgeInsets.only(top: 20),
+                  child: Card(
+                      elevation: 2,
+                      shadowColor: AppColors.shadowColor,
+                      color: Colors.blue,
+                      child: Column(
+                        children: [
+                          Container(
+                              margin: EdgeInsets.all(50),
+                              child: Text(
+                                  "lorem epsom lorem epsom lorem epsom lorem epsom lorem epsom lorem epsom lorem epsom "))
+                        ],
+                      ))),
             ],
           ),
         ));
