@@ -9,7 +9,9 @@
 // AppLocalizations.of(context).iphonexxs11pro1widgetLabelText
 
 import 'package:flutter/material.dart';
+
 import 'package:video_downloader/i18n/i18n.dart';
+import 'package:font_awesome_flutter/font_awesome_flutter.dart';
 import 'package:video_downloader/values/borders.dart';
 import 'package:video_downloader/values/colors.dart';
 import 'package:percent_indicator/percent_indicator.dart';
@@ -22,6 +24,30 @@ class ControllerPage extends StatefulWidget {
 }
 
 class _ControllerPageState extends State<ControllerPage> {
+  int _selectedIndex = 0;
+  static const TextStyle optionStyle =
+      TextStyle(fontSize: 30, fontWeight: FontWeight.bold);
+  static const List<Widget> _widgetOptions = <Widget>[
+    Text(
+      'Index 0: Home',
+      style: optionStyle,
+    ),
+    Text(
+      'Index 1: Business',
+      style: optionStyle,
+    ),
+    Text(
+      'Index 2: School',
+      style: optionStyle,
+    ),
+  ];
+
+  void _onItemTapped(int index) {
+    setState(() {
+      _selectedIndex = index;
+    });
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -82,19 +108,84 @@ class _ControllerPageState extends State<ControllerPage> {
                 ),
               ),
               Container(
+                padding: EdgeInsets.all(50),
+                width: double.infinity,
+                margin: EdgeInsets.only(top: 20),
+                decoration: new BoxDecoration(
+                    color: Colors.blue,
+                    borderRadius: new BorderRadius.circular(15)),
+                child: Text("hi"),
+              ),
+              Container(
                   margin: EdgeInsets.only(top: 20),
-                  child: Card(
-                      elevation: 2,
-                      shadowColor: AppColors.shadowColor,
-                      color: Colors.blue,
-                      child: Column(
-                        children: [
-                          Container(
-                              margin: EdgeInsets.all(50),
-                              child: Text(
-                                  "lorem epsom lorem epsom lorem epsom lorem epsom lorem epsom lorem epsom lorem epsom "))
-                        ],
-                      ))),
+                  height: 120,
+                  child: Row(
+                    children: [
+                      Expanded(
+                          flex: 2,
+                          child: Container(
+                            alignment: Alignment.center,
+                            height: 80,
+                            decoration: new BoxDecoration(
+                                color: Colors.blue,
+                                borderRadius: new BorderRadius.circular(15)),
+                            child: FaIcon(FontAwesomeIcons.facebook),
+                          )),
+                      Spacer(),
+                      Expanded(
+                          flex: 2,
+                          child: Container(
+                            alignment: Alignment.center,
+                            height: 80,
+                            decoration: new BoxDecoration(
+                                color: Colors.blue,
+                                borderRadius: new BorderRadius.circular(15)),
+                            child: FaIcon(FontAwesomeIcons.instagram),
+                          )),
+                      Spacer(),
+                      Expanded(
+                          flex: 2,
+                          child: Container(
+                            alignment: Alignment.center,
+                            height: 80,
+                            decoration: new BoxDecoration(
+                                color: Colors.blue,
+                                borderRadius: new BorderRadius.circular(15)),
+                            child: FaIcon(FontAwesomeIcons.tiktok),
+                          )),
+                      Spacer(),
+                      Expanded(
+                          flex: 2,
+                          child: Container(
+                              alignment: Alignment.center,
+                              height: 80,
+                              decoration: new BoxDecoration(
+                                  color: Colors.blue,
+                                  borderRadius: new BorderRadius.circular(15)),
+                              child: FaIcon(FontAwesomeIcons.whatsapp))),
+                    ],
+                  )),
+              Container(
+                  height: 100,
+                  child: BottomNavigationBar(
+                    items: const <BottomNavigationBarItem>[
+                      BottomNavigationBarItem(
+                        icon: Icon(Icons.home),
+                        label: 'Home',
+                      ),
+                      BottomNavigationBarItem(
+                        icon: Icon(Icons.business),
+                        label: 'Business',
+                      ),
+                      BottomNavigationBarItem(
+                        icon: Icon(Icons.school),
+                        label: 'School',
+                      ),
+                    ],
+                    currentIndex: _selectedIndex,
+                    selectedItemColor: Colors.amber[800],
+                    onTap: _onItemTapped,
+                  )),
             ],
           ),
         ));
