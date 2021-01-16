@@ -10,11 +10,15 @@
 
 import 'dart:io';
 
+import 'package:dio/dio.dart';
 import 'package:flutter/material.dart';
+import 'package:permission_handler/permission_handler.dart';
+import 'package:video_downloader/data/facebookData.dart';
+import 'package:video_downloader/service/interceptor/initial_dio.dart';
 import 'package:video_thumbnail/video_thumbnail.dart';
 import 'package:clipboard/clipboard.dart';
 import 'package:video_downloader/directory_values/static_directories.dart';
-import 'package:video_downloader/i18n/i18n.dart';
+
 import 'package:connectivity/connectivity.dart';
 import 'package:font_awesome_flutter/font_awesome_flutter.dart';
 import 'package:video_downloader/values/borders.dart';
@@ -30,8 +34,15 @@ class ControllerPage extends StatefulWidget {
 
 class _ControllerPageState extends State<ControllerPage> {
   String paste = '';
+  PermissionStatus status;
+  FacebookProfile _fbProfile;
+  final _client = InitielDio(Dio());
+  bool _isLoadingHtml = false;
+
+  int denyCnt = 0;
   TextEditingController inputValue = new TextEditingController();
   bool _isDisabled = true;
+  String _postThumbnail = '';
   var _fbScaffoldKey = GlobalKey<ScaffoldState>();
   bool validateURL(List<String> urls) {
     // Pattern pattern = r'^(http(s)?:\/\/)?((w){3}.)?facebook?(\.com)?\/(watch\/\?v=.+|.+\/videos\/.+)$';
@@ -44,6 +55,13 @@ class _ControllerPageState extends State<ControllerPage> {
       }
     }
     return true;
+  }
+
+  void downloadFile(String mediaUrl, String dirPath) {
+    _client.dio.download(mediaUrl, dirPath,
+        onReceiveProgress: (received, total) {
+      int percentage = ((received / total) * 100).floor();
+    });
   }
 
   Future<String> _loadthumb(String videoUrl) async {
@@ -60,16 +78,72 @@ class _ControllerPageState extends State<ControllerPage> {
     return (rep);
   }
 
+  void _getPermission() async {
+    status = await Permission.storage.request();
+
+    if (status == PermissionStatus.permanentlyDenied) {
+      showDialog(
+        context: context,
+        barrierDismissible: false,
+        builder: (context) {
+          return AlertDialog(
+            title: Text('Storage Permission Requried'),
+            content: Text('Enable Storage Permission from App Setting'),
+            actions: <Widget>[
+              FlatButton(
+                child: Text('Open Setting'),
+                onPressed: () async {
+                  openAppSettings();
+                  exit(0);
+                },
+              )
+            ],
+          );
+        },
+      );
+    } else {
+      while (!status.isGranted) {
+        if (denyCnt > 20) {
+          exit(0);
+        }
+        status = await Permission.storage.request();
+        denyCnt++;
+      }
+    }
+  }
+
   void getButton(String url) {
     if (validateURL([url])) {
       setState(() {
         _isDisabled = false;
       });
+      setState(() {
+        this.paste = url;
+        inputValue.text = url;
+      });
+      sheckConnectivity();
+      posteFromUrl(url);
     } else {
       setState(() {
         _isDisabled = true;
       });
+      _fbScaffoldKey.currentState.showSnackBar(
+          mySnackBar(context, "is not a valid facebook or instagram url"));
     }
+  }
+
+  void posteFromUrl(String url) async {
+    setState(() {
+      _isLoadingHtml = true;
+    });
+    _fbProfile = await FacebookData.postFromUrl('$paste');
+
+    _postThumbnail = await _loadthumb(_fbProfile.postData.videoHdUrl != ""
+        ? _fbProfile.postData.videoHdUrl.toString()
+        : _fbProfile.postData.videoSdUrl.toString());
+    setState(() {
+      _isLoadingHtml = false;
+    });
   }
 
   Widget mySnackBar(BuildContext context, String msg) {
@@ -92,6 +166,7 @@ class _ControllerPageState extends State<ControllerPage> {
   @override
   void initState() {
     super.initState();
+    _getPermission();
     if (!StaticRepots.facebookDirectory.existsSync()) {
       StaticRepots.facebookDirectory.createSync(recursive: true);
     }
@@ -168,60 +243,54 @@ class _ControllerPageState extends State<ControllerPage> {
                         borderRadius: new BorderRadius.circular(15)),
                     child: Column(
                       children: [
-                        Row(
-                          children: [
-                            Expanded(
-                                child: Container(
-                              height: 30,
-                              child: TextField(
-                                textAlignVertical: TextAlignVertical.center,
-                                style: TextStyle(fontSize: 15),
-                                scrollPadding: EdgeInsets.all(10),
-                                decoration: InputDecoration(
-                                    labelStyle: TextStyle(
-                                        color: Colors.white, fontSize: 10),
-                                    filled: true,
-                                    enabled: true,
-                                    fillColor: AppColors.primaryBackground,
-                                    hoverColor: Colors.white,
-                                    focusColor: Colors.white,
-                                    border: new OutlineInputBorder(
-                                      borderRadius:
-                                          new BorderRadius.circular(15.0),
-                                    ),
-                                    icon: ClipOval(
-                                      child: Material(
-                                        color: AppColors
-                                            .primaryBackground, // button color
-                                        child: InkWell(
-                                          splashColor: AppColors
-                                              .hoverButton, // inkwell color
-                                          child: SizedBox(
-                                              width: 30,
-                                              height: 30,
-                                              child: Icon(
-                                                Icons.link,
-                                                size: 20,
-                                              )),
-                                          onTap: () async {
-                                            final value =
-                                                await FlutterClipboard.paste();
-                                            getButton(value);
-                                            setState(() async {
-                                              this.paste = value;
-                                              inputValue.text = value;
-                                              sheckConnectivity();
-                                            });
-                                          },
-                                        ),
-                                      ),
-                                    )),
-                                controller: inputValue,
-                                autocorrect: false,
-                              ),
-                            )),
-                          ],
-                        )
+                        Container(
+                          height: 30,
+                          child: TextField(
+                            textAlignVertical: TextAlignVertical.center,
+                            style: TextStyle(
+                              fontSize: 12,
+                            ),
+                            decoration: InputDecoration(
+                                contentPadding: EdgeInsets.all(5),
+                                labelStyle: TextStyle(
+                                    color: Colors.white, fontSize: 100),
+                                filled: true,
+                                enabled: true,
+                                fillColor: AppColors.primaryBackground,
+                                hoverColor: Colors.white,
+                                focusColor: Colors.white,
+                                border: new OutlineInputBorder(
+                                  borderRadius: new BorderRadius.circular(15.0),
+                                ),
+                                icon: ClipOval(
+                                  child: Material(
+                                    color: AppColors
+                                        .primaryBackground, // button color
+                                    child: _isLoadingHtml == false
+                                        ? InkWell(
+                                            splashColor: AppColors
+                                                .hoverButton, // inkwell color
+                                            child: SizedBox(
+                                                width: 30,
+                                                height: 30,
+                                                child: Icon(
+                                                  Icons.link,
+                                                  size: 20,
+                                                )),
+                                            onTap: () async {
+                                              final value =
+                                                  await FlutterClipboard
+                                                      .paste();
+                                              getButton(value);
+                                            },
+                                          )
+                                        : CircularProgressIndicator(),
+                                  ),
+                                )),
+                            controller: inputValue,
+                            autocorrect: false,
+                          ),
+                        ),
                       ],
                     ),
                   ),
