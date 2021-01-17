@@ -9,9 +9,14 @@
 // AppLocalizations.of(context).iphonexxs11pro1widgetLabelText
 
 import 'dart:io';
-
+import 'dart:isolate';
+import 'dart:ui';
+import 'package:flutter_downloader/flutter_downloader.dart';
+import 'package:progressive_image/progressive_image.dart';
 import 'package:dio/dio.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/material.dart';
+import 'package:simple_url_preview/simple_url_preview.dart';
 import 'package:permission_handler/permission_handler.dart';
 import 'package:video_downloader/data/facebookData.dart';
 import 'package:video_downloader/service/interceptor/initial_dio.dart';
@@ -37,8 +42,10 @@ class _ControllerPageState extends State<ControllerPage> {
   PermissionStatus status;
   FacebookProfile _fbProfile;
   final _client = InitielDio(Dio());
+  ReceivePort _receivePort = ReceivePort();
   bool _isLoadingHtml = false;
-
+  bool _isLoadinThumbReady = false;
+  double progressdownload = 0;
   int denyCnt = 0;
   TextEditingController inputValue = new TextEditingController();
   bool _isDisabled = true;
@@ -57,11 +64,33 @@ class _ControllerPageState extends State<ControllerPage> {
     return true;
   }
 
-  void downloadFile(String mediaUrl, String dirPath) {
-    _client.dio.download(mediaUrl, dirPath,
-        onReceiveProgress: (received, total) {
-      int percentage = ((received / total) * 100).floor();
-    });
+  static downloadCallback(String id, DownloadTaskStatus status, int progress) {
+    SendPort sendPort = IsolateNameServer.lookupPortByName("downloading");
+
+    ///ssending the data
+    sendPort.send([id, status, progress]);
+  }
+
+  void downloadFile(String mediaUrl, dynamic dirPath) async {
+    String name =
+        'FB-${DateTime.now().year}${DateTime.now().month}${DateTime.now().day}${DateTime.now().hour}${DateTime.now().minute}${DateTime.now().second}${DateTime.now().millisecond}.mp4';
+
+    await FlutterDownloader.enqueue(
+      url: mediaUrl,
+      savedDir: dirPath.path,
+      fileName: name,
+      showNotification: true,
+      openFileFromNotification: true,
+    );
+
+    // _client.dio.download(mediaUrl, "${dirPath.path}/$name",
+    //     onReceiveProgress: (received, total) {
+    //   int percentage = ((received / total) * 100).floor();
+    //   print(percentage);
+    //   setState(() {
+    //     progressdownload = (percentage / 100);
+    //   });
+    // });
   }
 
   Future<String> _loadthumb(String videoUrl) async {
@@ -137,11 +166,22 @@ class _ControllerPageState extends State<ControllerPage> {
       _isLoadingHtml = true;
     });
     _fbProfile = await FacebookData.postFromUrl('$paste');
+    if (_fbProfile.postData.videoHdUrl != "") {
+      _postThumbnail =
+          await _loadthumb(_fbProfile.postData.videoHdUrl.toString());
+    } else if (_fbProfile.postData.videoSdUrl != "" &&
+        _fbProfile.postData.videoHdUrl == "") {
+      _postThumbnail =
+          await _loadthumb(_fbProfile.postData.videoSdUrl.toString());
+    } else if (_fbProfile.postData.videoMp3Url != "" &&
+        _fbProfile.postData.videoSdUrl == "" &&
+        _fbProfile.postData.videoHdUrl == "") {
+      _postThumbnail =
+          await _loadthumb(_fbProfile.postData.videoSdUrl.toString());
+    }
 
-    _postThumbnail = await _loadthumb(_fbProfile.postData.videoHdUrl != ""
-        ? _fbProfile.postData.videoHdUrl.toString()
-        : _fbProfile.postData.videoSdUrl.toString());
     setState(() {
+      _isLoadinThumbReady = true;
       _isLoadingHtml = false;
     });
   }
@@ -166,6 +206,19 @@ class _ControllerPageState extends State<ControllerPage> {
   @override
   void initState() {
     super.initState();
+    FlutterDownloader.registerCallback(downloadCallback);
+    IsolateNameServer.registerPortWithName(
+        _receivePort.sendPort, "downloading");
+
+    ///Listening for the data is comming other isolataes
+    _receivePort.listen((message) {
+      setState(() {
+        progressdownload = message[2] / 100;
+      });
+
+      print(progressdownload);
+    });
+
     _getPermission();
     if (!StaticRepots.facebookDirectory.existsSync()) {
       StaticRepots.facebookDirectory.createSync(recursive: true);
@@ -204,7 +257,7 @@ class _ControllerPageState extends State<ControllerPage> {
                         child: Container(
                           alignment: Alignment.topRight,
                           child: Text(
-                            "...50% / 10 M",
+                            "...${progressdownload * 100}%",
                             style: TextStyle(
                                 color: AppColors.tinyText,
                                 fontSize: 10,
@@ -218,7 +271,7 @@ class _ControllerPageState extends State<ControllerPage> {
                       lineHeight: 10.0,
                       animation: true,
                       animateFromLastPercent: true,
-                      percent: 0.75,
+                      percent: progressdownload,
                       backgroundColor: Colors.white,
                       progressColor: AppColors.indicatorValueColor,
                     ),
@@ -243,54 +296,105 @@ class _ControllerPageState extends State<ControllerPage> {
                         borderRadius: new BorderRadius.circular(15)),
                     child: Column(
                       children: [
-                        Container(
-                          height: 30,
-                          child: TextField(
-                            textAlignVertical: TextAlignVertical.center,
-                            style: TextStyle(
-                              fontSize: 12,
-                            ),
-                            decoration: InputDecoration(
-                                contentPadding: EdgeInsets.all(5),
-                                labelStyle: TextStyle(
-                                    color: Colors.white, fontSize: 100),
-                                filled: true,
-                                enabled: true,
-                                fillColor: AppColors.primaryBackground,
-                                hoverColor: Colors.white,
-                                focusColor: Colors.white,
-                                border: new OutlineInputBorder(
-                                  borderRadius: new BorderRadius.circular(15.0),
+                        Visibility(
+                            visible: _isLoadinThumbReady == false,
+                            child: Container(
+                              height: 30,
+                              child: TextField(
+                                textAlignVertical: TextAlignVertical.center,
+                                style: TextStyle(
+                                  fontSize: 12,
                                 ),
-                                icon: ClipOval(
-                                  child: Material(
-                                    color: AppColors
-                                        .primaryBackground, // button color
-                                    child: _isLoadingHtml == false
-                                        ? InkWell(
-                                            splashColor: AppColors
-                                                .hoverButton, // inkwell color
-                                            child: SizedBox(
-                                                width: 30,
-                                                height: 30,
-                                                child: Icon(
-                                                  Icons.link,
-                                                  size: 20,
+                                decoration: InputDecoration(
+                                    contentPadding: EdgeInsets.all(5),
+                                    labelStyle: TextStyle(
+                                        color: Colors.white, fontSize: 100),
+                                    filled: true,
+                                    enabled: true,
+                                    fillColor: AppColors.primaryBackground,
+                                    hoverColor: Colors.white,
+                                    focusColor: Colors.white,
+                                    border: new OutlineInputBorder(
+                                      borderRadius:
+                                          new BorderRadius.circular(15.0),
+                                    ),
+                                    icon: ClipOval(
+                                      child: Material(
+                                          color: AppColors
+                                              .primaryBackground, // button color
+                                          child: _isLoadingHtml == false
+                                              ? InkWell(
+                                                  splashColor: AppColors
+                                                      .hoverButton, // inkwell color
+                                                  child: SizedBox(
+                                                      width: 30,
+                                                      height: 30,
+                                                      child: Icon(
+                                                        Icons.link,
+                                                        size: 20,
+                                                      )),
+                                                  onTap: () async {
+                                                    final value =
+                                                        await FlutterClipboard
+                                                            .paste();
+                                                    getButton(value);
+                                                  },
+                                                )
+                                              : Container(
+                                                  height: 30,
+                                                  width: 30,
+                                                  child:
+                                                      CircularProgressIndicator(
+                                                    backgroundColor: AppColors
+                                                        .indicatorValueColor,
+                                                  ),
                                                 )),
-                                            onTap: () async {
-                                              final value =
-                                                  await FlutterClipboard
-                                                      .paste();
-                                              getButton(value);
-                                            },
-                                          )
-                                        : CircularProgressIndicator(),
-                                  ),
-                                )),
-                            controller: inputValue,
-                            autocorrect: false,
-                          ),
-                        ),
+                                    )),
+                                controller: inputValue,
+                                autocorrect: false,
+                              ),
+                            )),
+                        Visibility(
+                            visible: _isLoadinThumbReady == true,
+                            child: ListTile(
+                              leading: Container(
+                                decoration: new BoxDecoration(
+                                    borderRadius:
+                                        new BorderRadius.circular(15)),
+                                height: 40,
+                                width: 40,
+                                child: ProgressiveImage(
+                                  placeholder: AssetImage(
+                                      'assets/images/placeholder_image.png'),
+                                  thumbnail: FileImage(File(_postThumbnail)),
+                                  image: FileImage(File(_postThumbnail)),
+                                  width: double.infinity,
+                                  height: double.infinity,
+                                  fit: BoxFit.fitHeight,
+                                ),
+                              ),
+                              title: SimpleUrlPreview(
+                                url: _fbProfile != null
+                                    ? _fbProfile.postData.description
+                                    : "",
+                                textColor: Colors.white,
+                                bgColor: Colors.red,
+                                isClosable: true,
+                                previewHeight: 150,
+                              ),
+                              subtitle: Row(
+                                children: [
+                                  IconButton(
+                                    icon: Icon(Icons.download_sharp),
+                                    onPressed: () {
+                                      downloadFile(
+                                          _fbProfile.postData.videoHdUrl,
+                                          StaticRepots.facebookDirectory);
+                                    },
+                                  )
+                                ],
+                              ),
+                            ))
                       ],
                     ),
                   ),

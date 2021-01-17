@@ -33,7 +33,7 @@ class FacebookData {
           _temporaryData.indexOf(_patternStart) + _patternStart.length + 1;
       _endInx = _temporaryData.indexOf(_patternEnd);
       _postData['videoSdUrl'] =
-          _temporaryData.substring(_startInx, _endInx) != null
+          _temporaryData.substring(_startInx, _endInx) != 'null'
               ? _temporaryData.substring(_startInx, _endInx)
               : "";
 
@@ -41,10 +41,7 @@ class FacebookData {
       _patternEnd = '",sd_src:';
       _startInx = _temporaryData.indexOf(_patternStart) + _patternStart.length;
       _endInx = _temporaryData.indexOf(_patternEnd);
-      _postData['videoHdUrl'] =
-          _temporaryData.substring(_startInx, _endInx) != 'null'
-              ? _temporaryData.substring(_startInx, _endInx)
-              : "";
+      _postData['videoHdUrl'] = _temporaryData.substring(_startInx, _endInx);
       _postData['description'] =
           _temporaryData.substring(_startInx, _endInx) != 'null'
               ? _temporaryData.substring(_startInx, _endInx)
