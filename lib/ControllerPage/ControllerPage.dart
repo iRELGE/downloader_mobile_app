@@ -75,7 +75,7 @@ class _ControllerPageState extends State<ControllerPage> {
     String name =
         'FB-${DateTime.now().year}${DateTime.now().month}${DateTime.now().day}${DateTime.now().hour}${DateTime.now().minute}${DateTime.now().second}${DateTime.now().millisecond}.mp4';
 
-    await FlutterDownloader.enqueue(
+    FlutterDownloader.enqueue(
       url: mediaUrl,
       savedDir: dirPath.path,
       fileName: name,
@@ -216,7 +216,13 @@ class _ControllerPageState extends State<ControllerPage> {
         progressdownload = message[2] / 100;
       });
 
-      print(progressdownload);
+      if (message[2] >= 100) {
+        setState(() {
+          _isLoadinThumbReady = false;
+          inputValue.text = "";
+          progressdownload = 0.0;
+        });
+      }
     });
 
     _getPermission();
@@ -361,8 +367,8 @@ class _ControllerPageState extends State<ControllerPage> {
                                 decoration: new BoxDecoration(
                                     borderRadius:
                                         new BorderRadius.circular(15)),
-                                height: 40,
-                                width: 40,
+                                height: 50,
+                                width: 50,
                                 child: ProgressiveImage(
                                   placeholder: AssetImage(
                                       'assets/images/placeholder_image.png'),
