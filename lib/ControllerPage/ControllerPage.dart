@@ -45,14 +45,14 @@ class _ControllerPageState extends State<ControllerPage> {
   ReceivePort _receivePort = ReceivePort();
   bool _isLoadingHtml = false;
   bool _isLoadinThumbReady = false;
-  double progressdownload = 0;
+  double progressdownload = 0.0;
   int denyCnt = 0;
   TextEditingController inputValue = new TextEditingController();
   bool _isDisabled = true;
   String _postThumbnail = '';
   var _fbScaffoldKey = GlobalKey<ScaffoldState>();
   bool validateURL(List<String> urls) {
-    // Pattern pattern = r'^(http(s)?:\/\/)?((w){3}.)?facebook?(\.com)?\/(watch\/\?v=.+|.+\/videos\/.+)$';
+    //Pattern pattern = r'^(http(s)?:\/\/)?((w){3}.)?facebook?(\.com)?\/(watch\/\?v=.+|.+\/videos\/.+)$';
     Pattern pattern = r'^(http(s)?:\/\/)?((w){3}.)?facebook?(\.com)?\/.+$';
     RegExp regex = new RegExp(pattern);
 
@@ -81,7 +81,13 @@ class _ControllerPageState extends State<ControllerPage> {
       fileName: name,
       showNotification: true,
       openFileFromNotification: true,
-    );
+    ).whenComplete(() {
+      setState(() {
+        _isLoadinThumbReady = false;
+        inputValue.text = "";
+        progressdownload = 0.0;
+      });
+    });
 
     // _client.dio.download(mediaUrl, "${dirPath.path}/$name",
     //     onReceiveProgress: (received, total) {
@@ -245,53 +251,58 @@ class _ControllerPageState extends State<ControllerPage> {
                   EdgeInsets.only(left: 15, right: 15, top: 15, bottom: 10),
               child: Column(
                 children: [
-                  Row(children: [
-                    Expanded(
-                        flex: 2,
-                        child: Container(
-                          alignment: Alignment.topLeft,
-                          child: Text(
-                            "Downloading",
-                            style: TextStyle(
-                                color: AppColors.boldText,
-                                fontSize: 15,
-                                fontWeight: FontWeight.w800),
-                          ),
-                        )),
-                    Expanded(
-                        flex: 1,
-                        child: Container(
-                          alignment: Alignment.topRight,
-                          child: Text(
-                            "...${progressdownload * 100}%",
-                            style: TextStyle(
-                                color: AppColors.tinyText,
-                                fontSize: 10,
-                                fontWeight: FontWeight.w500),
-                          ),
-                        )),
-                  ]),
-                  Container(
-                    margin: EdgeInsets.only(top: 10, bottom: 10),
-                    child: LinearPercentIndicator(
-                      lineHeight: 10.0,
-                      animation: true,
-                      animateFromLastPercent: true,
-                      percent: progressdownload,
-                      backgroundColor: Colors.white,
-                      progressColor: AppColors.indicatorValueColor,
-                    ),
-                    decoration: BoxDecoration(
-                      boxShadow: [
-                        BoxShadow(
-                          color: AppColors.shadowColor.withOpacity(0.5),
-                          spreadRadius: 5,
-                          blurRadius: 7,
-                          offset: Offset(0, 3), // changes position of shadow
+                  Visibility(
+                      visible: progressdownload > 0,
+                      child: Row(children: [
+                        Expanded(
+                            flex: 2,
+                            child: Container(
+                              alignment: Alignment.topLeft,
+                              child: Text(
+                                "Downloading",
+                                style: TextStyle(
+                                    color: AppColors.boldText,
+                                    fontSize: 15,
+                                    fontWeight: FontWeight.w800),
+                              ),
+                            )),
+                        Expanded(
+                            flex: 1,
+                            child: Container(
+                              alignment: Alignment.topRight,
+                              child: Text(
+                                "...${progressdownload * 100}%",
+                                style: TextStyle(
+                                    color: AppColors.tinyText,
+                                    fontSize: 10,
+                                    fontWeight: FontWeight.w500),
+                              ),
+                            )),
+                      ])),
+                  Visibility(
+                      visible: progressdownload > 0,
+                      child: Container(
+                        margin: EdgeInsets.only(top: 10, bottom: 10),
+                        child: LinearPercentIndicator(
+                          lineHeight: 10.0,
+                          animation: true,
+                          animateFromLastPercent: true,
+                          percent: progressdownload,
+                          backgroundColor: Colors.white,
+                          progressColor: AppColors.indicatorValueColor,
                         ),
-                      ],
-                    ),
-                  ),
+                        decoration: BoxDecoration(
+                          boxShadow: [
+                            BoxShadow(
+                              color: AppColors.shadowColor.withOpacity(0.5),
+                              spreadRadius: 5,
+                              blurRadius: 7,
+                              offset:
+                                  Offset(0, 3), // changes position of shadow
+                            ),
+                          ],
+                        ),
+                      )),
                   Container(
                     padding: EdgeInsets.all(15),
                     width: double.infinity,

@@ -1,7 +1,5 @@
-import 'package:dio/dio.dart';
 import 'package:html/parser.dart';
-
-import 'package:video_downloader/service/interceptor/initial_dio.dart';
+import 'package:http/http.dart';
 
 class FacebookData {
   static FacebookProfile _profileParsed = FacebookProfile();
@@ -9,14 +7,14 @@ class FacebookData {
   static Future<FacebookProfile> postFromUrl(String profileUrl) async {
     String _temporaryData = '', _patternStart = '', _patternEnd = '';
     int _startInx = 0, _endInx = 1;
-    final _client = InitielDio(Dio());
+    Client _client = Client();
     Response _response;
     Map<String, String> _postData = Map<String, String>();
     var _document;
 
     try {
-      _response = await _client.dio.get('$profileUrl');
-      _document = parse(_response.data);
+      _response = await _client.get('$profileUrl');
+      _document = parse(_response.body);
       _document = _document.querySelectorAll('body');
       _temporaryData = _document[0].text;
       _temporaryData = _temporaryData.trim();
@@ -32,20 +30,16 @@ class FacebookData {
       _startInx =
           _temporaryData.indexOf(_patternStart) + _patternStart.length + 1;
       _endInx = _temporaryData.indexOf(_patternEnd);
-      _postData['videoSdUrl'] =
-          _temporaryData.substring(_startInx, _endInx) != 'null'
-              ? _temporaryData.substring(_startInx, _endInx)
-              : "";
+      _postData['videoSdUrl'] = _temporaryData.substring(_startInx, _endInx);
 
       _patternStart = ',hd_src:"';
       _patternEnd = '",sd_src:';
       _startInx = _temporaryData.indexOf(_patternStart) + _patternStart.length;
       _endInx = _temporaryData.indexOf(_patternEnd);
-      _postData['videoHdUrl'] = _temporaryData.substring(_startInx, _endInx);
-      _postData['description'] =
+      _postData['videoHdUrl'] =
           _temporaryData.substring(_startInx, _endInx) != 'null'
               ? _temporaryData.substring(_startInx, _endInx)
-              : "";
+              : _postData['videoSdUrl'];
 
       if (!_temporaryData.contains('audio:[]')) {
         _patternStart = 'audio:[{url:"';
